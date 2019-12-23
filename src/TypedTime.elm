@@ -11,8 +11,8 @@ module TypedTime exposing
     , sub
     , Unit(..)
     , toString
-    , parseStringToChar
-    , hmsParser
+   --  , parseStringToChar
+    -- , hmsParser
     )
 
 {-|
