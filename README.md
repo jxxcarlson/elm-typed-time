@@ -23,5 +23,8 @@ You can also construct such values from strings, e.g.,
 
     fromString Seconds "4:23"
     --> Just (add (minutes 4) (seconds 23))
+    
+    
+This package is inspired by `ianmackenzie/elm-units`.
 
     

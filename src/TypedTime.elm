@@ -5,14 +5,17 @@ module TypedTime exposing
     , hours
     , equal
     , multiply
+    , divide
     , common
     , ratio
     , add
     , sub
     , sum
+    , toSeconds
     , Unit(..)
     , toString
     , fromString
+    , zero
     )
 
 {-|
@@ -35,15 +38,15 @@ For example,
 
 ## Constructors
 
-@docs hours, minutes, seconds, milliseconds
+@docs hours, minutes, seconds, milliseconds, zero
 
 ## Operators
 
-@docs equal, common, multiply, add, sub, sum, ratio
+@docs equal, common, multiply, divide, add, sub, sum, ratio
 
 ## Conversion
 
-@docs toString, fromString
+@docs toSeconds, toString, fromString
 
 
 -}
@@ -65,6 +68,14 @@ type Unit
     | Minutes
     | Hours
 
+
+{-|
+
+    The zero element for TypedTime.
+
+-}
+zero: TypedTime
+zero = seconds 0
 
 ord : Unit -> Int
 ord u =
@@ -204,6 +215,19 @@ multiply : Float -> TypedTime -> TypedTime
 multiply f t =
    map (\x -> f * x)  t
 
+
+{-|
+
+    equal (divide 0.5 (minutes 1)) (seconds 120)
+    --> True
+
+-}
+divide : Float -> TypedTime -> TypedTime
+divide f t =
+   map (\x -> x/f)  t
+
+
+
 {-|
 
     abs ((ratio (minutes 1) (seconds 60)) - 1.0) < 0.000001
@@ -243,6 +267,19 @@ sub s t =
 convertToMilliSeconds : TypedTime -> Float
 convertToMilliSeconds (TypedTime _ t) = t
 
+
+
+{-|
+
+    abs( (toSeconds (seconds 1)) - 1.0) < 0.00001
+    --> True
+
+    abs( (toSeconds (minutes 1)) - 60.0) < 0.00001
+    --> True
+
+ -}
+toSeconds : TypedTime -> Float
+toSeconds (TypedTime _ t) = t/1000.0
 
 {-|
 
@@ -368,8 +405,6 @@ hmStringFromSeconds s =
 
 
 {-|
-
-    import Parser
 
     fromString Milliseconds "123"
     --> Just (milliseconds 123)
