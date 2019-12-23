@@ -9,10 +9,10 @@ module TypedTime exposing
     , ratio
     , add
     , sub
+    , sum
     , Unit(..)
     , toString
-   --  , parseStringToChar
-    -- , hmsParser
+    , fromString
     )
 
 {-|
@@ -40,7 +40,7 @@ For example,
 
 ## Conversion
 
-@docs toString, Unit
+@docs toString, fromString, Unit
 
 
 -}
@@ -160,12 +160,11 @@ equal s t =
 
 {-|
 
-    tt : List TypedTime
-    tt = [seconds 30, minutes 1]
+    equal (sum [seconds 30, minutes 1]) (milliseconds 90000)
+    --> True
 
-    equal (sum tt) (milliseconds 90000)
-
-    equal (sum tt) (minutes 1.5)
+    equal (sum [seconds 30, minutes 1]) (minutes 1.5)
+    --> True
 
 -}
 sum : List TypedTime -> TypedTime
@@ -174,11 +173,6 @@ sum timeList =
         |> List.map convertToMilliSeconds
         |> List.sum
         |> TypedTime Milliseconds
-
---
---
---convert : Unit -> TypedTime -> TypedTime
---convert u t =
 
 
 
@@ -277,11 +271,26 @@ toString u (TypedTime unit_ value) =
 type alias HMSRecord =
     {  hours : Int,  minutes : Int,  seconds : Int}
 
-type alias HMSSRecord =
-    { seconds : String, minutes : String, hours : String }
-
 type alias HMRecord =
     { hours : Int, minutes : Int }
+
+
+type alias MSRecord =
+    { minutes : Int, seconds : Int }
+
+typedTimeFromHMRecord : HMRecord -> TypedTime
+typedTimeFromHMRecord r =
+    add (hours (toFloat r.hours)) (minutes (toFloat r.minutes))
+
+typedTimeFromMSRecord : MSRecord -> TypedTime
+typedTimeFromMSRecord r =
+    add (minutes (toFloat r.minutes)) (seconds (toFloat r.seconds))
+
+
+
+typedTimeFromHMSRecord : HMSRecord -> TypedTime
+typedTimeFromHMSRecord r =
+    sum [ (hours (toFloat r.hours)), (minutes (toFloat r.minutes)), (seconds (toFloat r.seconds))  ]
 
 
 hmsRecordFromSeconds : Float -> HMSRecord
@@ -353,37 +362,168 @@ hmStringFromSeconds s =
 --
 -- TIME PARSER
 --
+
+
+{-|
+
+    import Parser
+
+    fromString Milliseconds "123"
+    --> Just (milliseconds 123)
+
+    fromString Seconds "23"
+    --> Just  (seconds 23)
+
+    fromString Seconds "2.17"
+    --> Just  (seconds 2.17)
+
+    fromString Seconds "4:23"
+    --> Just (add (minutes 4) (seconds 23))
+
+    fromString Seconds "04:03"
+    --> Just (add (minutes 4) (seconds 3))
+
+    fromString Minutes "04:03"
+    --> Just (add (hours 4) (minutes 3))
+
+   fromString Minutes "4.7"
+    --> Just (minutes 4.7)
+
+ -}
+fromString : Unit -> String -> Maybe TypedTime
+fromString u s =
+    Parser.run (timeParser u) s
+      |> Result.toMaybe
+
+
+{-|
+
+    import Parser
+
+    Parser.run (timeParser Milliseconds) "123"
+    x-> Ok (milliseconds 123)
+
+    Parser.run (timeParser Seconds) "23"
+    x-> Ok  (seconds 23)
+
+    Parser.run (timeParser Seconds) "2.17"
+    x-> Ok  (seconds 2.17)
+
+    Parser.run (timeParser Seconds) "4:23"
+    x-> Ok (add (minutes 4) (seconds 23))
+
+    Parser.run (timeParser Seconds) "04:03"
+    x-> Ok (add (minutes 4) (seconds 3))
+
+    Parser.run (timeParser Minutes) "04:03"
+    x-> Ok (add (hours 4) (minutes 3))
+
+    Parser.run (timeParser Minutes) "4.7"
+    x-> Ok (minutes 4.7)
+
+ -}
+timeParser : Unit -> Parser TypedTime
+timeParser u =
+    case u of
+        Milliseconds -> Parser.float |> Parser.map milliseconds
+        Seconds -> Parser.oneOf [Parser.backtrackable hmsParser, Parser.backtrackable msParser, sParser]
+        Minutes -> Parser.oneOf [Parser.backtrackable hmParser, mParser]
+        _ -> hParser
+
+
+sParser : Parser TypedTime
+sParser =
+    Parser.float |> Parser.map seconds
+
+mParser : Parser TypedTime
+mParser =
+    Parser.float |> Parser.map minutes
+
+
+hParser : Parser TypedTime
+hParser =
+    Parser.float |> Parser.map hours
+
+
+{-|
+
+    import Parser
+
+    Parser.run hmParser "1:2"
+    x-> Ok (add (hours 1) (minutes 2))
+
+    Parser.run hmParser "02:03"
+    x-> Ok (add (minutes 3) (hours 2))
+-}
+hmParser : Parser TypedTime
+hmParser =
+    (Parser.succeed HMRecord
+        |= Parser.oneOf [altIntParser, Parser.int]
+        |. Parser.symbol ":"
+        |= Parser.oneOf [altIntParser, Parser.int]
+    )
+      |> Parser.map typedTimeFromHMRecord
+
+
+{-|
+
+    import Parser
+
+    Parser.run msParser "1:2"
+    x-> Ok (add (minutes 1) (seconds 2))
+
+    Parser.run msParser "02:03"
+    x-> Ok (add (seconds 3) (minutes 2))
+-}
+msParser : Parser TypedTime
+msParser =
+    (Parser.succeed MSRecord
+        |= Parser.oneOf [altIntParser, Parser.int]
+        |. Parser.symbol ":"
+        |= Parser.oneOf [altIntParser, Parser.int]
+    )
+      |> Parser.map typedTimeFromMSRecord
+
 {-|
 
     import Parser
 
     Parser.run hmsParser "1:2:3"
-    --> Ok { seconds = 3, minutes = 2, hours = 1 }
+    x-> Ok (sum [seconds 3, minutes 2, hours 1])
+
+    Parser.run hmsParser "1:02:03"
+    x-> Ok (sum [seconds 3, minutes 2, hours 1])
+-}
+hmsParser : Parser TypedTime
+hmsParser =
+    (Parser.succeed HMSRecord
+        |= Parser.oneOf [altIntParser, Parser.int]
+        |. Parser.symbol ":"
+        |= Parser.oneOf [altIntParser, Parser.int]
+        |. Parser.symbol ":"
+        |= Parser.oneOf [altIntParser, Parser.int]
+      )
+        |> Parser.map typedTimeFromHMSRecord
+
+
+{-|
+
+    import Parser
+
+    Parser.run altIntParser "07"
+    x-> Ok 7
 
 -}
-hmsParser : Parser HMSRecord
-hmsParser =
-    Parser.succeed HMSRecord
-        |= Parser.int
-        |. Parser.symbol ":"
-        |= Parser.int
-        |. Parser.symbol ":"
-        |= Parser.int
-
-
---parsePermission : Parser Document.Permission
---parsePermission =
---    parseStringToChar ')'
---        |> Parser.map Document.permissionFromString
---
-
+altIntParser : Parser Int
+altIntParser =
+    Parser.symbol "0" |> Parser.andThen (\_ -> Parser.int)
 
 {-|
 
     import Parser
 
     Parser.run (parseStringToChar '.') "foo.bar"
-    --> Ok "foo"
+    x-> Ok "foo"
 
 
 -}
@@ -401,38 +541,3 @@ parseWhile accepting =
     Parser.chompWhile accepting |> Parser.getChompedString
 
 
-
-decodeHM : String -> Maybe Float
-decodeHM str =
-    let
-        parts =
-            String.split ":" (String.trim str)
-                |> List.map String.toFloat
-                |> Maybe.Extra.values
-    in
-    case List.length parts of
-        1 ->
-            Maybe.map (\x -> 60 * x) (List.Extra.getAt 0 parts)
-
-        2 ->
-            let
-                hoursPart =
-                    Maybe.map (\x -> 3600 * x) (List.Extra.getAt 0 parts)
-
-                minutesPart =
-                    Maybe.map (\x -> 60 * x) (List.Extra.getAt 1 parts)
-            in
-            Maybe.map2 (+) hoursPart minutesPart
-
-        _ ->
-            Nothing
-
-
-decode : String -> TypedTime
-decode str =
-    case decodeHM str of
-        Nothing ->
-            seconds 0
-
-        Just t ->
-            seconds (1.0 * t)
