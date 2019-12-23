@@ -1,9 +1,14 @@
 module TypedTime exposing
-    (milliseconds
+    (TypedTime
+    , milliseconds
     , seconds
     , minutes
     , hours
     , equal
+    , lt
+    , lte
+    , gt
+    , gte
     , multiply
     , divide
     , common
@@ -34,15 +39,20 @@ For example,
 
 ## Types
 
-@docs Unit
+@docs TypedTime, Unit
 
 ## Constructors
 
 @docs hours, minutes, seconds, milliseconds, zero
 
+
+## Comparison
+
+@docs equal, gt, gte, lt, lte
+
 ## Operators
 
-@docs equal, common, multiply, divide, add, sub, sum, ratio
+@docs common, multiply, divide, add, sub, sum, ratio
 
 ## Conversion
 
@@ -55,7 +65,11 @@ import List.Extra
 import Maybe.Extra
 import Parser exposing ((|.), (|=), Parser)
 
+{-|
 
+The data type for the package
+
+-}
 type TypedTime
     = TypedTime Unit Float
 
@@ -166,10 +180,66 @@ hours t =
  -}
 equal : TypedTime -> TypedTime -> Bool
 equal s t =
-    abs ((convertToMilliSeconds s) - (convertToMilliSeconds t)) < 0.001
+    abs ((toMilliseconds s) - (toMilliseconds t)) < 0.001
 
 
+{-|
 
+    Greater than:
+
+    gt (seconds 1.0001) (seconds 1)
+    --> True
+
+
+ -}
+gt : TypedTime -> TypedTime -> Bool
+gt s t =
+    (toMilliseconds s) > (toMilliseconds t)
+
+
+{-|
+
+    Greater than or equal to:
+
+    gte (seconds 1) (seconds 1)
+    --> True
+
+    gte (seconds 1.001) (seconds 1)
+    --> True
+
+ -}
+gte : TypedTime -> TypedTime -> Bool
+gte s t =
+    (toMilliseconds s) >= (toMilliseconds t)
+
+
+{-|
+
+    Les than:
+
+    lt (seconds 1) (seconds 1.001)
+    --> True
+
+
+ -}
+lt : TypedTime -> TypedTime -> Bool
+lt s t =
+    (toMilliseconds s) < (toMilliseconds t)
+
+
+{-|
+    Less than or equal to:
+
+    lte (seconds 1) (seconds 1)
+    --> True
+
+    lte (seconds 1) (seconds 1.001)
+    --> True
+
+ -}
+lte : TypedTime -> TypedTime -> Bool
+lte s t =
+    (toMilliseconds s) <= (toMilliseconds t)
 
 
 {-|
@@ -184,7 +254,7 @@ equal s t =
 sum : List TypedTime -> TypedTime
 sum timeList =
     timeList
-        |> List.map convertToMilliSeconds
+        |> List.map toMilliseconds
         |> List.sum
         |> TypedTime Milliseconds
 
@@ -237,7 +307,7 @@ divide f t =
 -}
 ratio : TypedTime -> TypedTime -> Float
 ratio denom num =
-    convertToMilliSeconds num / convertToMilliSeconds denom
+    toMilliseconds num / toMilliseconds denom
 
 
 
@@ -264,8 +334,8 @@ sub s t =
     map2 (-) s t
 
 
-convertToMilliSeconds : TypedTime -> Float
-convertToMilliSeconds (TypedTime _ t) = t
+toMilliseconds : TypedTime -> Float
+toMilliseconds (TypedTime _ t) = t
 
 
 

@@ -1,7 +1,16 @@
 ## Typed Time
 
 This library provides functions for working with typed time.
-For example,
+For example, the functions
+
+    seconds : Float -> TypedTime
+    minutes : Float -> TypedTime
+
+are used to construct `TypedTime` values, while
+ 
+    equal : TypedTime -> TypedTime -> Bool
+    
+tests for equality.  Here are some examples:
 
     equal (seconds 60) (minutes 1)
     --> True
@@ -12,13 +21,7 @@ For example,
     add (hours 1) (minutes 20) |> toString Seconds
     --> "01:20:00"
 
-To construct TypedTime values, use
 
-    milliseconds : Float -> TypedTime
-    seconds : Float -> TypedTime
-    minutes : Float -> TypedTime
-    hours : Float -> TypedTime
-    
 You can also construct such values from strings, e.g., 
 
     fromString Seconds "4:23"
