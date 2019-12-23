@@ -29,6 +29,9 @@ For example,
     add (hours 1) (minutes 20) |> toString Seconds
     --> "01:20:00"
 
+## Types
+
+@docs Unit
 
 ## Constructors
 
@@ -36,11 +39,11 @@ For example,
 
 ## Operators
 
-@docs equal, common, multiply, add, sub, ratio
+@docs equal, common, multiply, add, sub, sum, ratio
 
 ## Conversion
 
-@docs toString, fromString, Unit
+@docs toString, fromString
 
 
 -}
@@ -386,7 +389,7 @@ hmStringFromSeconds s =
     fromString Minutes "04:03"
     --> Just (add (hours 4) (minutes 3))
 
-   fromString Minutes "4.7"
+    fromString Minutes "4.7"
     --> Just (minutes 4.7)
 
  -}
