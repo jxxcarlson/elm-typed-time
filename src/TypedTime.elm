@@ -9,30 +9,53 @@ module TypedTime exposing
     , ratio
     , add
     , sub
-    , ord
-    , unit
     , Unit(..)
-    , timeAsStringWithUnit
-    , decode
-    , decodeHM
+    , toString
+    , parseStringToChar
+    , hmsParser
     )
 
 {-|
 
-> a = TypedTime Seconds 600
-> timeAsStringWithUnit Minutes a
-> "00:10" : String
+This library provides functions for working with typed time.
+For example,
+
+    equal (seconds 60) (minutes 1)
+    --> True
+
+    add (hours 1) (minutes 20) |> toString Minutes
+    --> "01:20"
+
+    add (hours 1) (minutes 20) |> toString Seconds
+    --> "01:20:00"
+
+
+## Constructors
+
+@docs hours, minutes, seconds, milliseconds
+
+## Operators
+
+@docs equal, common, multiply, add, sub, ratio
+
+## Conversion
+
+@docs toString, Unit
+
 
 -}
 
 import List.Extra
 import Maybe.Extra
+import Parser exposing ((|.), (|=), Parser)
 
 
 type TypedTime
     = TypedTime Unit Float
 
+{-|
 
+-}
 type Unit
     = Milliseconds
     | Seconds
@@ -48,21 +71,7 @@ ord u =
         Minutes -> 2
         Hours -> 3
 
-{-|
 
-    unit (ord Milliseconds) == Milliseconds
-    --> True
-
-    unit (ord Seconds) == Seconds
-    --> True
-
-    unit (ord Minutes) == Minutes
-    --> True
-
-    unit (ord Hours) == Hours
-    --> True
-
- -}
 unit : Int -> Unit
 unit k =
     case (modBy 4 k) of
@@ -86,6 +95,8 @@ common u v =
 
 {-|
 
+    milliseconds 1000  |> toString Seconds
+    --> "00:00:01"
 
 
 -}
@@ -96,6 +107,8 @@ milliseconds t =
 
 {-|
 
+    seconds 44 |> toString Seconds
+    --> "00:00:44"
 
 
 -}
@@ -105,6 +118,8 @@ seconds t =
 
 {-|
 
+    minutes 14.5 |> toString Seconds
+    --> "00:14:30"
 
 
  -}
@@ -114,7 +129,8 @@ minutes t =
 
 {-|
 
-
+    hours 1.5 |> toString Minutes
+    --> "01:30"
 
  -}
 hours : Float -> TypedTime
@@ -233,18 +249,18 @@ convertToMilliSeconds (TypedTime _ t) = t
 
 {-|
 
-    timeAsStringWithUnit Seconds (minutes 30)
+    toString Seconds (minutes 30)
     --> "00:30:00"
 
-    timeAsStringWithUnit Seconds (hours 0.5)
+    toString Seconds (hours 0.5)
     --> "00:30:00"
 
-    timeAsStringWithUnit Minutes (hours 0.5)
+    toString Minutes (hours 0.5)
     --> "00:30"
 
  -}
-timeAsStringWithUnit : Unit -> TypedTime -> String
-timeAsStringWithUnit u (TypedTime unit_ value) =
+toString : Unit -> TypedTime -> String
+toString u (TypedTime unit_ value) =
     case u of
         Milliseconds ->
             hmsStringFromSeconds (value/1000)
@@ -259,8 +275,10 @@ timeAsStringWithUnit u (TypedTime unit_ value) =
 
 
 type alias HMSRecord =
-    { seconds : Int, minutes : Int, hours : Int }
+    {  hours : Int,  minutes : Int,  seconds : Int}
 
+type alias HMSSRecord =
+    { seconds : String, minutes : String, hours : String }
 
 type alias HMRecord =
     { hours : Int, minutes : Int }
@@ -335,16 +353,55 @@ hmStringFromSeconds s =
 --
 -- TIME PARSER
 --
+{-|
+
+    import Parser
+
+    Parser.run hmsParser "1:2:3"
+    --> Ok { seconds = 3, minutes = 2, hours = 1 }
+
+-}
+hmsParser : Parser HMSRecord
+hmsParser =
+    Parser.succeed HMSRecord
+        |= Parser.int
+        |. Parser.symbol ":"
+        |= Parser.int
+        |. Parser.symbol ":"
+        |= Parser.int
+
+
+--parsePermission : Parser Document.Permission
+--parsePermission =
+--    parseStringToChar ')'
+--        |> Parser.map Document.permissionFromString
+--
 
 
 {-|
 
-    decodeHM "1"
-    --> Just 60
+    import Parser
 
-    decodeHM "01:00"
-    --> Just 3600
+    Parser.run (parseStringToChar '.') "foo.bar"
+    --> Ok "foo"
+
+
 -}
+parseStringToChar : Char -> Parser String
+parseStringToChar endChar =
+    (Parser.getChompedString <|
+        Parser.succeed identity
+            |. parseWhile (\c -> c /= endChar)
+    )
+        |> Parser.map String.trim
+
+
+parseWhile : (Char -> Bool) -> Parser String
+parseWhile accepting =
+    Parser.chompWhile accepting |> Parser.getChompedString
+
+
+
 decodeHM : String -> Maybe Float
 decodeHM str =
     let
@@ -370,15 +427,7 @@ decodeHM str =
         _ ->
             Nothing
 
-{-|
 
-    equal (decode "1") (minutes 1)
-    --> True
-
-    equal (decode "1:00") (hours 1)
-    --> True
-
--}
 decode : String -> TypedTime
 decode str =
     case decodeHM str of
